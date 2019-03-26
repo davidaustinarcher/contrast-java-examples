@@ -23,10 +23,11 @@ sourceSets {
 configurations {
     intTestImplementation.extendsFrom implementation
     intTestRuntimeOnly.extendsFrom runtimeOnly
-
-    // add Contrast configuration here in Step 5
+    contrastAgent
 }
 
+def contrast_version = "3.6.3"
+def contrast_build = "8220"
 
 dependencies {
     compile "org.glassfish.grizzly:grizzly-http-server:2.4.4"
@@ -38,19 +39,39 @@ dependencies {
     intTestImplementation "org.junit.jupiter:junit-jupiter-api:5.4.1"
     intTestRuntimeOnly "org.junit.platform:junit-platform-launcher:1.4.1"
     intTestImplementation "org.junit.jupiter:junit-jupiter-engine:5.4.1"
+    contrastAgent "com.contrastsecurity:contrast-agent:${contrast_version}.${contrast_build}"
 }
 
 application {
     mainClassName = "com.contrastsecurity.examples.grizzly.App"
 
-    // add Contrast application configuration here in Step 6
+    def agentBuildPath = "lib/contrast-agent-${contrast_version}.jar"
+    def agentProjectPath = Paths.get(getProjectDir().toURI()).resolve(agentBuildPath)
 
-    // add distribution config here in Step 7
 
-    // add start script configuration here in Step 7
+    applicationDefaultJvmArgs = [
+            "-javaagent:${agentProjectPath.toString()}"
+    ]
+
+    distributions {
+        main {
+            contents {
+                from("${projectDir}/lib") {
+                    into "lib"
+                }
+            }
+        }
+    }
+
+    startScripts {
+        doLast {
+            def shFile = new File(getOutputDir(), project.name)
+            shFile.text = shFile.text.replace(agentProjectPath.toString(), "\$APP_HOME/${agentBuildPath}")
+            def batFile = new File(getOutputDir(), "${project.name}.bat")
+            batFile.text = batFile.text.replace(agentProjectPath.toString(), "%APP_HOME%\\lib\\contrast-agent-${contrast_version}.jar")
+        }
+    }
 }
-
-// add Contrast copy task here in Step 5
 
 task createDockerfile(type: Dockerfile) {
     dependsOn assembleDist
@@ -75,7 +96,13 @@ task createContainer(type: DockerCreateContainer) {
     targetImageId buildDockerImage.getImageId()
     portBindings = ['8080:8080']
 
-    // add Contrast configuration here in Step 7
+    envVars = [
+            CONTRAST__API__URL         : System.getenv("CONTRAST__API__URL"),
+            CONTRAST__API__USER_NAME   : System.getenv("CONTRAST__API__USER_NAME"),
+            CONTRAST__API__SERVICE_KEY : System.getenv("CONTRAST__API__SERVICE_KEY"),
+            CONTRAST__API__API_KEY     : System.getenv("CONTRAST__API__API_KEY"),
+            CONTRAST__APPLICATION__NAME: "${project.name}-how-to"
+    ]
 }
 
 task startContainer(type: DockerStartContainer) {
@@ -106,6 +133,15 @@ assemble.dependsOn integrationTest
 test {
     useJUnitPlatform()
 }
+
+task copyAgent(type: Copy) {
+    from configurations.contrastAgent
+    into "${projectDir}/lib"
+    rename "contrast-agent-*.*.*.jar", "contrast-agent-${contrast_version}.jar"
+}
+
+run.dependsOn copyAgent
+assemble.dependsOn copyAgent
 
 verifyGoogleJavaFormat {
     // ignore formatting errors in order to simplify the how-to
