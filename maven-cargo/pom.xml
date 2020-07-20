@@ -13,8 +13,8 @@
   <url>https://github.com/Contrast-Security-OSS/contrast-java-examples</url>
 
   <properties>
-    <contrast.version>3.6.3</contrast.version>
-    <contrast.build>8220</contrast.build>
+    <contrast.version>3.7.5</contrast.version>
+    <contrast.build>15818</contrast.build>
   </properties>
 
   <dependencies>
@@ -82,7 +82,7 @@
       <plugin>
         <groupId>org.codehaus.cargo</groupId>
         <artifactId>cargo-maven2-plugin</artifactId>
-        <version>1.7.3</version>
+        <version>1.7.15</version>
         <configuration>
           <container>
             <containerId>jetty9x</containerId>
